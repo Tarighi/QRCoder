@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Drawing;
 using System.Collections;
 
 namespace QRCoder
@@ -31,7 +30,7 @@ namespace QRCoder
             CreateAlignmentPatternTable();
         }
 
-        public QRCode CreateQrCode(string plainText, ECCLevel eccLevel, bool utf8BOM = false)
+        public QRCodeData CreateQrCode(string plainText, ECCLevel eccLevel, bool utf8BOM = false)
         {
             var encoding = GetEncodingFromPlaintext(plainText);
             var codedText = PlainTextToBinary(plainText, encoding, utf8BOM);
@@ -46,7 +45,7 @@ namespace QRCoder
             bitString += codedText;
 
             //Fill up data code word
-            var eccInfo = capacityECCTable.Where(x => x.Version == version && x.ErrorCorrectionLevel.Equals(eccLevel)).Single();
+            var eccInfo = capacityECCTable.Single(x => x.Version == version && x.ErrorCorrectionLevel.Equals(eccLevel));
             var dataLength = eccInfo.TotalDataCodewords * 8;
             var lengthDiff = dataLength - bitString.Length;
             if (lengthDiff > 0)
@@ -108,7 +107,7 @@ namespace QRCoder
 
 
             //Place interleaved data on module matrix
-            QRCode qr = new QRCode(version);
+            QRCodeData qr = new QRCodeData(version);
             List<Rectangle> blockedModules = new List<Rectangle>();
             ModulePlacer.PlaceFinderPatterns(ref qr, ref blockedModules);
             ModulePlacer.ReserveSeperatorAreas(qr.ModuleMatrix.Count, ref blockedModules);
@@ -177,7 +176,7 @@ namespace QRCoder
 
         private static class ModulePlacer
         {
-            public static void AddQuietZone(ref QRCode qrCode)
+            public static void AddQuietZone(ref QRCodeData qrCode)
             {
                 bool[] quietLine = new bool[qrCode.ModuleMatrix.Count + 8];
                 for (int i = 0; i < quietLine.Length; i++)
@@ -197,7 +196,7 @@ namespace QRCoder
                 }
             }
 
-            public static void PlaceVersion(ref QRCode qrCode, string versionStr)
+            public static void PlaceVersion(ref QRCodeData qrCode, string versionStr)
             {
                 var size = qrCode.ModuleMatrix.Count;
                 var vStr = new string(versionStr.Reverse().ToArray());
@@ -212,7 +211,7 @@ namespace QRCoder
                 }
             }
 
-            public static void PlaceFormat(ref QRCode qrCode, string formatStr)
+            public static void PlaceFormat(ref QRCodeData qrCode, string formatStr)
             {
                 var size = qrCode.ModuleMatrix.Count;
                 var fStr = new string(formatStr.Reverse().ToArray());
@@ -226,7 +225,7 @@ namespace QRCoder
                 }
             }
 
-            public static int MaskCode(ref QRCode qrCode, int version, ref List<Rectangle> blockedModules)
+            public static int MaskCode(ref QRCodeData qrCode, int version, ref List<Rectangle> blockedModules)
             {
                 var patternName = string.Empty;
                 var patternScore = 0;
@@ -237,7 +236,7 @@ namespace QRCoder
                 {
                     if (pattern.Name.Length == 8 && pattern.Name.Substring(0, 7) == "Pattern")
                     {
-                        QRCode qrTemp = new QRCode(version);
+                        QRCodeData qrTemp = new QRCodeData(version);
                         for (int y = 0; y < size; y++)
                         {
                             for (int x = 0; x < size; x++)
@@ -268,7 +267,7 @@ namespace QRCoder
 
                     }
                 }
-                var patterMethod = typeof(MaskPattern).GetMethods().Where(x => x.Name == patternName).First();
+                var patterMethod = typeof(MaskPattern).GetMethods().First(x => x.Name == patternName);
                 for (int x = 0; x < size; x++)
                 {
                     for (int y = 0; y < size; y++)
@@ -283,7 +282,7 @@ namespace QRCoder
             }
 
 
-            public static void PlaceDataWords(ref QRCode qrCode, string data, ref List<Rectangle> blockedModules)
+            public static void PlaceDataWords(ref QRCodeData qrCode, string data, ref List<Rectangle> blockedModules)
             {
                 var size = qrCode.ModuleMatrix.Count;
                 var up = true;
@@ -348,13 +347,13 @@ namespace QRCoder
                 });
                 }
             }
-            public static void PlaceDarkModule(ref QRCode qrCode, int version, ref List<Rectangle> blockedModules)
+            public static void PlaceDarkModule(ref QRCodeData qrCode, int version, ref List<Rectangle> blockedModules)
             {
                 qrCode.ModuleMatrix[4 * version + 9][8] = true;
                 blockedModules.Add(new Rectangle(8, 4 * version + 9, 1, 1));
             }
 
-            public static void PlaceFinderPatterns(ref QRCode qrCode, ref List<Rectangle> blockedModules)
+            public static void PlaceFinderPatterns(ref QRCodeData qrCode, ref List<Rectangle> blockedModules)
             {
                 var size = qrCode.ModuleMatrix.Count;
                 int[] locations = { 0, 0, size - 7, 0, 0, size - 7 };
@@ -375,7 +374,7 @@ namespace QRCoder
                 }
             }
 
-            public static void PlaceAlignmentPatterns(ref QRCode qrCode, List<Point> alignmentPatternLocations, ref List<Rectangle> blockedModules)
+            public static void PlaceAlignmentPatterns(ref QRCodeData qrCode, List<Point> alignmentPatternLocations, ref List<Rectangle> blockedModules)
             {
                 foreach (var loc in alignmentPatternLocations)
                 {
@@ -406,7 +405,7 @@ namespace QRCoder
                 }
             }
 
-            public static void PlaceTimingPatterns(ref QRCode qrCode, ref List<Rectangle> blockedModules)
+            public static void PlaceTimingPatterns(ref QRCodeData qrCode, ref List<Rectangle> blockedModules)
             {
                 var size = qrCode.ModuleMatrix.Count;
                 for (int i = 8; i < size - 8; i++)
@@ -481,7 +480,7 @@ namespace QRCoder
                     return (((x + y) % 2) + ((x * y) % 3)) % 2 == 0;
                 }
 
-                public static int Score(ref QRCode qrCode)
+                public static int Score(ref QRCodeData qrCode)
                 {
                     var score = 0;
                     var size = qrCode.ModuleMatrix.Count;
@@ -677,16 +676,15 @@ namespace QRCoder
         private int GetVersion(int length, EncodingMode encMode, ECCLevel eccLevel)
         {
             var version = capacityTable.Where(
-                x => x.Details.Where(
+                x => x.Details.Count(
                     y => (y.ErrorCorrectionLevel == eccLevel
                           && y.CapacityDict[encMode] >= Convert.ToInt32(length)
                           )
-                    ).Count() > 0
+                    ) > 0
               ).Select(x => new
               {
                   version = x.Version,
-                  capacity = x.Details.Where(y => y.ErrorCorrectionLevel == eccLevel)
-                                            .Single()
+                  capacity = x.Details.Single(y => y.ErrorCorrectionLevel == eccLevel)
                                             .CapacityDict[encMode]
               }).Min(x => x.version);
             return version;
@@ -1225,6 +1223,7 @@ namespace QRCoder
                 return sb.ToString().TrimEnd(new char[] { ' ', '+' });
             }
         }
+<<<<<<< HEAD:QRCoder/QRCoder.cs
 
 
         public class QRCode
@@ -1272,13 +1271,30 @@ namespace QRCoder
 
                 gfx.Save();
                 return bmp;
+=======
+        
+        private class Point {
+            public int X;
+            public int Y;
+            public Point(int x, int y) {
+                X = x;
+                Y = y;
+>>>>>>> master:QRCoder/QRCodeGenerator.cs
             }
-
-            private int ModulesPerSideFromVersion(int version)
-            {
-                return 21 + (version - 1) * 4;
+        }
+        
+        private class Rectangle {
+            public int X;
+            public int Y;
+            public int Width;
+            public int Height;
+            
+            public Rectangle(int x, int y, int w, int h) {
+                X = x;
+                Y = y;
+                Width = w;
+                Height = h;
             }
-
         }
     }
 }
